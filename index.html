@@ -49,7 +49,8 @@
 
     <style>
         [x-cloak] { display: none !important; }
-        body { background-color: #0f172a; color: #f1f5f9; font-family: system-ui, sans-serif; overflow-x: hidden; padding-top: env(safe-area-inset-top); }
+        html, body { min-height: 100dvh; box-sizing: border-box; }
+        body { background-color: #0f172a; color: #f1f5f9; font-family: system-ui, sans-serif; overflow-x: hidden; padding-top: env(safe-area-inset-top); padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); }
         .card-doc { background: #1e293b; border-radius: 1.25rem; border: 1px solid #334155; }
         .expiry-warning { border-left: 5px solid #ef4444; background: #271017; }
         .nomina-style { border-left: 5px solid #22c55e; }
@@ -97,17 +98,27 @@
         .flash-alert { animation: alertFlash 0.6s ease-in-out 3; }
     </style>
 </head>
-<body x-data="docApp()" x-init="init()" :class="{'flash-alert': hayCaducadosAlerta}" class="pb-16 min-h-screen flex flex-col justify-between">
+<body x-data="docApp()" x-init="init()" :class="{'flash-alert': hayCaducadosAlerta}" class="flex flex-col justify-between">
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(console.error);
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    reg.update();
+                }).catch(console.error);
             });
         }
     </script>
 
     <div>
+        <!-- MODAL NOTIFICACIÓN INTERNA (SIN ALERT NATIVO) -->
+        <div x-show="toastApp.visible" x-transition class="fixed bottom-6 left-4 right-4 z-[400] flex justify-center pointer-events-none" x-cloak>
+            <div class="bg-slate-800 border border-blue-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 max-w-sm">
+                <span class="material-symbols-outlined text-blue-400 text-lg">info</span>
+                <span x-text="toastApp.texto"></span>
+            </div>
+        </div>
+
         <!-- MODAL TUTORIAL BIENVENIDA -->
         <div x-show="modalTutorial" class="fixed inset-0 z-[320] bg-black/85 flex items-center justify-center p-5 backdrop-blur-md" x-transition x-cloak>
             <div class="card-doc p-6 w-full max-w-sm space-y-5 shadow-2xl border-blue-500/40">
@@ -123,12 +134,12 @@
                         <p><strong>Organización por carpetas:</strong> Al entrar en una categoría y pulsar <strong>+</strong>, se selecciona automáticamente la carpeta del mes activo.</p>
                     </div>
                     <div class="flex items-start gap-2.5">
-                        <span class="material-symbols-outlined text-emerald-400 text-base mt-0.5">share</span>
-                        <p><strong>Compartir directo:</strong> Envía PDFs o fotos desde WhatsApp o Archivos eligiendo DocSafe en el menú compartir.</p>
+                        <span class="material-symbols-outlined text-emerald-400 text-base mt-0.5">compress</span>
+                        <p><strong>Auto-compresión PDF y Escáner:</strong> Los PDFs pesados se comprimen automáticamente y el escáner blanquea el papel manteniendo sus proporciones.</p>
                     </div>
                     <div class="flex items-start gap-2.5">
                         <span class="material-symbols-outlined text-amber-400 text-base mt-0.5">enhanced_encryption</span>
-                        <p><strong>Nueva Caja Fuerte:</strong> Entra en <strong>Ajustes ⚙️</strong> para guardar tus tarjetas bancarias y contraseñas cifradas bajo clave maestra.</p>
+                        <p><strong>Caja Fuerte Cifrada:</strong> Entra en <strong>Ajustes ⚙️</strong> para guardar tus tarjetas bancarias y contraseñas cifradas bajo clave maestra.</p>
                     </div>
                 </div>
 
@@ -321,7 +332,6 @@
 
         <!-- MODAL CAJA FUERTE CIFRADA (AES-GCM 256 BITS) -->
         <div x-show="modalCajaFuerte" class="fixed inset-0 z-[270] bg-slate-950/95 flex flex-col backdrop-blur-xl" x-transition x-cloak>
-            <!-- Cabecera Caja Fuerte -->
             <div class="p-4 flex justify-between items-center border-b border-amber-500/20 bg-slate-900">
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-amber-400 text-2xl">enhanced_encryption</span>
@@ -367,7 +377,6 @@
             <!-- PANTALLA 2: INTERIOR DE LA CAJA FUERTE -->
             <template x-if="vaultDesbloqueado">
                 <div class="flex-grow overflow-y-auto p-4 space-y-5 max-w-lg mx-auto w-full">
-                    <!-- Selector de Pestañas -->
                     <div class="grid grid-cols-2 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-white/10">
                         <button @click="vaultTab = 'tarjetas'" :class="vaultTab === 'tarjetas' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-400 font-bold'" class="py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all">
                             <span class="material-symbols-outlined text-base">credit_card</span> Tarjetas (<span x-text="vaultDatos.tarjetas.length"></span>)
@@ -377,7 +386,6 @@
                         </button>
                     </div>
 
-                    <!-- Aviso de copia -->
                     <div x-show="vaultToast" x-transition class="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold px-4 py-2.5 rounded-xl text-center" x-text="vaultToast"></div>
 
                     <!-- SECCIÓN TARJETAS BANCARIAS -->
@@ -388,9 +396,8 @@
                                 <span x-text="mostrarFormTarjeta ? 'Cancelar' : 'Añadir Tarjeta Bancaria'"></span>
                             </button>
 
-                            <!-- Formulario Nueva Tarjeta -->
                             <div x-show="mostrarFormTarjeta" x-transition class="card-doc p-4 space-y-3 border-amber-500/30">
-                                <input type="text" x-model="nuevaTarjeta.banco" placeholder="Banco / Alias (ej: CaixaBank Nómina)" class="w-full p-3 rounded-xl text-xs font-bold outline-none">
+                                <input type="text" x-model="nuevaTarjeta.banco" placeholder="Banco / Alias (ej: Cuenta Nómina)" class="w-full p-3 rounded-xl text-xs font-bold outline-none">
                                 <input type="text" x-model="nuevaTarjeta.titular" placeholder="Nombre del Titular" class="w-full p-3 rounded-xl text-xs font-bold outline-none uppercase">
                                 <input type="text" maxlength="19" x-model="nuevaTarjeta.numero" placeholder="Número de Tarjeta (16 dígitos)" class="w-full p-3 rounded-xl text-xs font-mono font-bold outline-none">
                                 <div class="grid grid-cols-3 gap-2">
@@ -401,7 +408,6 @@
                                 <button @click="guardarTarjetaVault()" class="w-full py-3 bg-amber-500 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider shadow">Guardar Cifrada</button>
                             </div>
 
-                            <!-- Listado de Tarjetas -->
                             <template x-if="vaultDatos.tarjetas.length === 0 && !mostrarFormTarjeta">
                                 <div class="text-center p-8 card-doc text-slate-500">
                                     <span class="material-symbols-outlined text-4xl mb-2 opacity-50">credit_card_off</span>
@@ -460,16 +466,14 @@
                                 <span x-text="mostrarFormClave ? 'Cancelar' : 'Añadir Contraseña / Cuenta'"></span>
                             </button>
 
-                            <!-- Formulario Nueva Contraseña -->
                             <div x-show="mostrarFormClave" x-transition class="card-doc p-4 space-y-3 border-amber-500/30">
-                                <input type="text" x-model="nuevaClave.servicio" placeholder="Servicio / Web (ej: Banco, Seguridad Social, Gmail)" class="w-full p-3 rounded-xl text-xs font-bold outline-none">
+                                <input type="text" x-model="nuevaClave.servicio" placeholder="Servicio / Web (ej: Banco, Seguridad Social, Correo)" class="w-full p-3 rounded-xl text-xs font-bold outline-none">
                                 <input type="text" x-model="nuevaClave.usuario" placeholder="Usuario / Correo / DNI" class="w-full p-3 rounded-xl text-xs font-bold outline-none">
                                 <input type="text" x-model="nuevaClave.password" placeholder="Contraseña" class="w-full p-3 rounded-xl text-xs font-mono font-bold outline-none">
                                 <input type="text" x-model="nuevaClave.nota" placeholder="Nota opcional (ej: Pregunta seguridad)" class="w-full p-3 rounded-xl text-xs outline-none">
                                 <button @click="guardarClaveVault()" class="w-full py-3 bg-amber-500 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider shadow">Guardar Cifrada</button>
                             </div>
 
-                            <!-- Listado de Contraseñas -->
                             <template x-if="vaultDatos.claves.length === 0 && !mostrarFormClave">
                                 <div class="text-center p-8 card-doc text-slate-500">
                                     <span class="material-symbols-outlined text-4xl mb-2 opacity-50">no_encryption</span>
@@ -976,7 +980,7 @@
                                                     </div>
                                                 </div>
 
-                                                <button @click.stop="borrarSubcarpeta(sub)" class="text-slate-500 hover:text-red-400 p-1 flex-shrink-0">
+                                                <button @click.stop="pedirBorrarSubcarpeta(sub)" class="text-slate-500 hover:text-red-400 p-1 flex-shrink-0">
                                                     <span class="material-symbols-outlined text-base">delete</span>
                                                 </button>
                                             </div>
@@ -1030,7 +1034,7 @@
                                                 <button @click.stop="abrirModalRenovar(doc)" title="Renovar" class="text-slate-400 p-1 hover:text-blue-400">
                                                     <span class="material-symbols-outlined text-lg">edit_calendar</span>
                                                 </button>
-                                                <button @click.stop="borrar(doc)" title="Borrar" class="text-slate-500 p-1 hover:text-red-500">
+                                                <button @click.stop="pedirBorrarDoc(doc)" title="Borrar" class="text-slate-500 p-1 hover:text-red-500">
                                                     <span class="material-symbols-outlined text-lg">delete</span>
                                                 </button>
                                             </div>
@@ -1113,7 +1117,7 @@
                                             <button @click.stop="abrirModalRenovar(doc)" title="Renovar" class="text-slate-400 p-1 hover:text-blue-400">
                                                 <span class="material-symbols-outlined text-lg">edit_calendar</span>
                                             </button>
-                                            <button @click.stop="borrar(doc)" title="Borrar" class="text-slate-500 p-1 hover:text-red-500">
+                                            <button @click.stop="pedirBorrarDoc(doc)" title="Borrar" class="text-slate-500 p-1 hover:text-red-500">
                                                 <span class="material-symbols-outlined text-lg">delete</span>
                                             </button>
                                         </div>
@@ -1126,6 +1130,19 @@
                 </main>
             </div>
         </template>
+
+        <!-- MODAL DE CONFIRMACIÓN PROPIO (SIN CONFIRM NATIVO DEL NAVEGADOR) -->
+        <div x-show="confirmModal.visible" class="fixed inset-0 z-[350] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm" x-transition x-cloak>
+            <div class="card-doc p-6 w-full max-w-xs space-y-4 shadow-2xl border-red-500/30 text-center">
+                <span class="material-symbols-outlined text-4xl text-red-400">delete_forever</span>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider" x-text="confirmModal.titulo"></h3>
+                <p class="text-xs text-slate-400" x-text="confirmModal.mensaje"></p>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button @click="confirmModal.visible = false" class="py-2.5 bg-slate-700 rounded-xl font-black text-white uppercase text-[11px]">Cancelar</button>
+                    <button @click="ejecutarConfirmacion()" class="py-2.5 bg-red-600 rounded-xl font-black text-white uppercase text-[11px]">Confirmar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- SELLO OFICIAL MINIMALISTA MEDBASHA -->
@@ -1265,7 +1282,10 @@
                 archivoPendiente: null,
                 modoHorizontal: false,
 
-                // GESTIÓN DE HUELLA Y PIN (UNIFICADO EN INDEXEDDB + MIGRACIÓN AUTOMÁTICA)
+                toastApp: { visible: false, texto: '' },
+                confirmModal: { visible: false, titulo: '', mensaje: '', accion: null },
+
+                // GESTIÓN DE HUELLA Y PIN (UNIFICADO EN INDEXEDDB)
                 bloqueoPinActivo: false,
                 bloqueoDesbloqueado: false,
                 pinGuardado: '1234',
@@ -1279,7 +1299,7 @@
                 vaultDesbloqueado: false,
                 vaultMasterInput: '',
                 vaultMasterConfirm: '',
-                vaultMasterKeyMem: '', // Solo vive en RAM mientras la caja fuerte está abierta
+                vaultMasterKeyMem: '',
                 vaultError: '',
                 vaultTab: 'tarjetas',
                 vaultDatos: { tarjetas: [], claves: [] },
@@ -1332,10 +1352,26 @@
 
                 modalRenovar: false, docEditando: null, nuevaFechaEdicion: '',
 
+                notificarApp(texto) {
+                    this.toastApp.texto = texto;
+                    this.toastApp.visible = true;
+                    setTimeout(() => { this.toastApp.visible = false; }, 3200);
+                },
+
+                pedirConfirmacion(titulo, mensaje, accion) {
+                    this.confirmModal = { visible: true, titulo, mensaje, accion };
+                },
+
+                async ejecutarConfirmacion() {
+                    this.confirmModal.visible = false;
+                    if (typeof this.confirmModal.accion === 'function') {
+                        await this.confirmModal.accion();
+                    }
+                },
+
                 async init() {
                     await idbEngine.init();
 
-                    // Cargar ajustes de IndexedDB (migrando desde localStorage si existieran)
                     let pinAct = await idbEngine.getMeta('docsafe_pin_active');
                     if (pinAct === null && localStorage.getItem('docsafe_pin_active') !== null) {
                         pinAct = localStorage.getItem('docsafe_pin_active') === 'true';
@@ -1350,13 +1386,11 @@
                     }
                     this.pinGuardado = pinCod || '1234';
 
-                    // Comprobar si ya se vio el tutorial de bienvenida
                     const tutVisto = await idbEngine.getMeta('docsafe_tutorial_v420');
                     if (!tutVisto) {
                         this.modalTutorial = true;
                     }
 
-                    // Bloqueo automático si la app pasa a segundo plano
                     document.addEventListener('visibilitychange', () => {
                         if (document.hidden && this.modalCajaFuerte) {
                             this.cerrarCajaFuerte();
@@ -1403,7 +1437,6 @@
                     if (payloadLocal) {
                         this.vaultConfigurado = true;
                     } else {
-                        // Comprobar si existe respaldo cifrado en Firestore
                         try {
                             const uid = auth.currentUser?.uid;
                             if (uid) {
@@ -1456,7 +1489,6 @@
                         try {
                             const payload = await idbEngine.getMeta('docsafe_vault_cipher');
                             const datosDescifrados = await cryptoVault.decryptObject(payload, this.vaultMasterInput);
-                            // Añadir propiedad reactiva visible=false por seguridad visual
                             datosDescifrados.tarjetas = (datosDescifrados.tarjetas || []).map(t => ({ ...t, visible: false }));
                             datosDescifrados.claves = (datosDescifrados.claves || []).map(c => ({ ...c, visible: false }));
                             this.vaultDatos = datosDescifrados;
@@ -1471,7 +1503,6 @@
 
                 async persistirVaultCifrado() {
                     if (!this.vaultMasterKeyMem) return;
-                    // Limpiar flags visuales antes de cifrar
                     const limpio = {
                         tarjetas: this.vaultDatos.tarjetas.map(({ visible, ...rest }) => rest),
                         claves: this.vaultDatos.claves.map(({ visible, ...rest }) => rest)
@@ -1479,7 +1510,6 @@
                     const payload = await cryptoVault.encryptObject(limpio, this.vaultMasterKeyMem);
                     await idbEngine.setMeta('docsafe_vault_cipher', payload);
 
-                    // Sincronizar paquete cifrado en Firestore bajo el UID del usuario
                     try {
                         const uid = auth.currentUser?.uid;
                         if (uid) {
@@ -1495,7 +1525,7 @@
 
                 async guardarTarjetaVault() {
                     if (!this.nuevaTarjeta.banco.trim() || !this.nuevaTarjeta.numero.trim()) {
-                        alert('Introduce al menos el nombre del banco y el número de tarjeta.');
+                        this.mostrarToastVault('⚠️ Introduce el banco y el número de tarjeta');
                         return;
                     }
                     const numFormateado = this.nuevaTarjeta.numero.replace(/\s+/g, '').replace(/(\d{4})/g, '$1 ').trim();
@@ -1517,7 +1547,7 @@
 
                 async guardarClaveVault() {
                     if (!this.nuevaClave.servicio.trim() || !this.nuevaClave.password.trim()) {
-                        alert('Introduce al menos el servicio y la contraseña.');
+                        this.mostrarToastVault('⚠️ Introduce el servicio y la contraseña');
                         return;
                     }
                     this.vaultDatos.claves.unshift({
@@ -1534,12 +1564,16 @@
                     this.mostrarToastVault('✅ Contraseña cifrada y guardada');
                 },
 
-                async borrarItemVault(tipo, index) {
-                    if (confirm('¿Eliminar este registro de la Caja Fuerte de forma permanente?')) {
-                        this.vaultDatos[tipo].splice(index, 1);
-                        await this.persistirVaultCifrado();
-                        this.mostrarToastVault('🗑️ Registro eliminado');
-                    }
+                borrarItemVault(tipo, index) {
+                    this.pedirConfirmacion(
+                        'Eliminar Registro',
+                        '¿Eliminar este registro de la Caja Fuerte de forma permanente?',
+                        async () => {
+                            this.vaultDatos[tipo].splice(index, 1);
+                            await this.persistirVaultCifrado();
+                            this.mostrarToastVault('🗑️ Registro eliminado');
+                        }
+                    );
                 },
 
                 enmascararTarjeta(num) {
@@ -1602,10 +1636,10 @@
                     if (this.pinNuevoAjuste.length === 4) {
                         this.pinGuardado = this.pinNuevoAjuste;
                         await idbEngine.setMeta('docsafe_pin_code', this.pinNuevoAjuste);
-                        alert("✅ Nuevo PIN guardado correctamente en IndexedDB");
+                        this.notificarApp('✅ Nuevo PIN guardado correctamente');
                         this.pinNuevoAjuste = '';
                     } else {
-                        alert("El PIN debe tener 4 números");
+                        this.notificarApp('⚠️ El PIN debe tener 4 números');
                     }
                 },
 
@@ -1630,7 +1664,7 @@
                         await db.collection("docsafe_folders").doc(this.carpetaColorTarget.id).update({ color: colorId });
                         this.modalCambiarColor = false;
                         this.carpetaColorTarget = null;
-                    } catch(e) { alert("Error al cambiar color"); }
+                    } catch(e) { this.notificarApp('❌ Error al cambiar color'); }
                 },
 
                 esMesActual(nombreCarpeta) {
@@ -1652,7 +1686,6 @@
                     }
                 },
 
-                // PRESELECCIÓN INTELIGENTE DE CATEGORÍA Y CARPETA/MES ACTIVO AL PULSAR +
                 toggleEditor() {
                     this.showEditor = !this.showEditor;
                     if (this.showEditor) {
@@ -1804,7 +1837,7 @@
                         });
                         this.nombreNuevaCarpeta = '';
                         this.modalNuevaCarpeta = false;
-                    } catch (e) { alert("❌ Error al crear la carpeta."); }
+                    } catch (e) { this.notificarApp('❌ Error al crear la carpeta'); }
                 },
 
                 async generarCarpetasAnoCompleto() {
@@ -1825,14 +1858,19 @@
                             }
                         }
                         this.modalNuevaCarpeta = false;
-                    } catch (e) { alert("❌ Error al generar carpetas."); } 
+                    } catch (e) { this.notificarApp('❌ Error al generar carpetas'); } 
                     finally { this.loading = false; }
                 },
 
-                async borrarSubcarpeta(sub) {
-                    if (confirm(`¿Borrar la carpeta "${sub.nombre}"? Los documentos pasarán a estar sueltos.`)) {
-                        await db.collection("docsafe_folders").doc(sub.id).delete();
-                    }
+                pedirBorrarSubcarpeta(sub) {
+                    this.pedirConfirmacion(
+                        'Borrar Carpeta',
+                        `¿Borrar "${sub.nombre}"? Los documentos pasarán a estar sueltos.`,
+                        async () => {
+                            await db.collection("docsafe_folders").doc(sub.id).delete();
+                            this.notificarApp('🗑️ Carpeta eliminada');
+                        }
+                    );
                 },
 
                 abrirModalMover(doc) {
@@ -1851,7 +1889,8 @@
                         });
                         this.modalMover = false;
                         this.docEditando = null;
-                    } catch (e) { alert("❌ Error al mover el documento."); }
+                        this.notificarApp('✅ Documento movido');
+                    } catch (e) { this.notificarApp('❌ Error al mover el documento'); }
                 },
 
                 obtenerSubcarpetasDeCat(catId) {
@@ -1980,18 +2019,31 @@
                     event.target.value = '';
                 },
 
+                // ESCÁNER MEJORADO: BLANQUEA PAPEL Y CONSERVA PROPORCIONES REALES EN A4
                 async ejecutarSubidaConConversionPDF(file, esEscaner) {
                     if(!this.nuevo.nombre) this.actualizarNombreSugerido();
                     this.loading = true;
-                    this.statusMsg = esEscaner ? "Escaneando documento..." : "Digitalizando foto a PDF...";
+                    this.statusMsg = esEscaner ? "Escaneando y blanqueando documento..." : "Digitalizando foto a PDF...";
 
                     try {
-                        const base64Escaneado = await this.aplicarFiltroEscanerOptimo(file);
-                        this.statusMsg = "Generando PDF de alta calidad...";
+                        const scanResult = await this.aplicarFiltroEscanerOptimo(file);
+                        this.statusMsg = "Generando PDF limpio...";
                         
                         const { jsPDF } = window.jspdf;
-                        const pdf = new jsPDF('p', 'mm', 'a4');
-                        pdf.addImage(base64Escaneado, 'JPEG', 5, 5, 200, 287);
+                        const orientacion = scanResult.width > scanResult.height ? 'l' : 'p';
+                        const pdf = new jsPDF(orientacion, 'mm', 'a4');
+                        const pageW = pdf.internal.pageSize.getWidth();
+                        const pageH = pdf.internal.pageSize.getHeight();
+                        const margin = 6;
+                        const maxW = pageW - (margin * 2);
+                        const maxH = pageH - (margin * 2);
+                        const ratio = Math.min(maxW / scanResult.width, maxH / scanResult.height);
+                        const finalW = scanResult.width * ratio;
+                        const finalH = scanResult.height * ratio;
+                        const offsetX = (pageW - finalW) / 2;
+                        const offsetY = (pageH - finalH) / 2;
+
+                        pdf.addImage(scanResult.dataUrl, 'JPEG', offsetX, offsetY, finalW, finalH);
                         const pdfBase64 = pdf.output('datauristring');
 
                         this.statusMsg = "Guardando en la bóveda e IndexedDB...";
@@ -2008,8 +2060,9 @@
                         this.nuevo = { nombre: '', categoria: this.categoriaSeleccionada && this.categoriaSeleccionada !== 'TODOS' ? this.categoriaSeleccionada : 'TRABAJO', subcarpeta: this.subcarpetaSeleccionada || '', fecha: '', esPDF: false };
                         this.showEditor = false;
                         this.archivoPendiente = null;
+                        this.notificarApp('✅ Documento escaneado y guardado');
                     } catch (e) {
-                        alert("❌ No se pudo convertir la foto a PDF.");
+                        this.notificarApp('❌ No se pudo convertir la foto a PDF');
                     } finally {
                         this.loading = false;
                     }
@@ -2024,12 +2077,17 @@
                             img.src = e.target.result;
                             img.onload = () => {
                                 const canvas = document.createElement('canvas');
-                                const MAX_H = 1400; 
+                                const MAX_DIM = 1600; 
                                 let w = img.width, h = img.height;
 
-                                if (h > MAX_H) {
-                                    w = Math.round(w * (MAX_H / h));
-                                    h = MAX_H;
+                                if (w > MAX_DIM || h > MAX_DIM) {
+                                    if (w > h) {
+                                        h = Math.round(h * (MAX_DIM / w));
+                                        w = MAX_DIM;
+                                    } else {
+                                        w = Math.round(w * (MAX_DIM / h));
+                                        h = MAX_DIM;
+                                    }
                                 }
 
                                 canvas.width = w; 
@@ -2041,20 +2099,83 @@
                                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                                     const d = imgData.data;
                                     for (let i = 0; i < d.length; i += 4) {
-                                        let v = (0.2126 * d[i] + 0.7152 * d[i+1] + 0.0722 * d[i+2]);
-                                        v = v > 128 ? Math.min(255, v * 1.2) : v * 0.7; 
-                                        d[i] = d[i+1] = d[i+2] = v;
+                                        const lum = (0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]);
+                                        let out;
+                                        if (lum > 165) {
+                                            // Blanquea el fondo del papel eliminando sombras grises
+                                            out = Math.min(255, 235 + ((lum - 165) * 0.22));
+                                        } else if (lum < 105) {
+                                            // Oscurece y define el texto impreso
+                                            out = Math.max(0, lum * 0.45);
+                                        } else {
+                                            // Estira el contraste intermedio
+                                            out = ((lum - 105) / 60) * 190 + 45;
+                                        }
+                                        d[i] = d[i+1] = d[i+2] = out;
                                     }
                                     ctx.putImageData(imgData, 0, 0);
-                                    resolve(canvas.toDataURL('image/jpeg', 0.75));
+                                    resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.72), width: w, height: h });
                                 } catch(err) {
-                                    resolve(canvas.toDataURL('image/jpeg', 0.75));
+                                    resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.72), width: w, height: h });
                                 }
                             };
                             img.onerror = () => reject(new Error("Error leyendo imagen"));
                         };
                         reader.onerror = () => reject(new Error("Error leyendo archivo"));
                     });
+                },
+
+                // AUTO-COMPRESIÓN INTELIGENTE PARA PDFs PESADOS (>720 KB)
+                async comprimirPDFPesado(file) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    const totalPaginas = pdfDoc.numPages;
+
+                    const generarVersionComprimida = async (escala, calidadJpeg) => {
+                        const { jsPDF } = window.jspdf;
+                        let pdfSalida = null;
+
+                        for (let pageNum = 1; pageNum <= totalPaginas; pageNum++) {
+                            this.statusMsg = `Comprimiendo página ${pageNum} de ${totalPaginas}...`;
+                            const page = await pdfDoc.getPage(pageNum);
+                            const viewport = page.getViewport({ scale: escala });
+
+                            const canvas = document.createElement('canvas');
+                            canvas.width = viewport.width;
+                            canvas.height = viewport.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                            const imgData = canvas.toDataURL('image/jpeg', calidadJpeg);
+
+                            const orientacion = viewport.width > viewport.height ? 'l' : 'p';
+                            if (pageNum === 1) {
+                                pdfSalida = new jsPDF(orientacion, 'pt', [viewport.width, viewport.height]);
+                            } else {
+                                pdfSalida.addPage([viewport.width, viewport.height], orientacion);
+                            }
+                            pdfSalida.addImage(imgData, 'JPEG', 0, 0, viewport.width, viewport.height);
+                        }
+                        return pdfSalida.output('datauristring');
+                    };
+
+                    // Primera pasada equilibrada según número de páginas
+                    const escalaInicial = totalPaginas > 4 ? 1.0 : 1.35;
+                    const calidadInicial = totalPaginas > 4 ? 0.55 : 0.65;
+                    let resultadoBase64 = await generarVersionComprimida(escalaInicial, calidadInicial);
+
+                    // Si aún supera el límite seguro de Firestore (~960 KB en Base64), segunda pasada más ligera
+                    if (resultadoBase64.length > 960000) {
+                        this.statusMsg = "Optimizando peso final para la nube...";
+                        resultadoBase64 = await generarVersionComprimida(0.85, 0.45);
+                    }
+
+                    if (resultadoBase64.length > 1020000) {
+                        throw new Error("PDF_DEMASIADO_EXTENSO");
+                    }
+                    return resultadoBase64;
                 },
 
                 abrirModalRenovar(doc) {
@@ -2072,7 +2193,8 @@
                         this.modalRenovar = false;
                         this.docEditando = null;
                         this.nuevaFechaEdicion = '';
-                    } catch (e) { alert("❌ Error al actualizar la fecha."); }
+                        this.notificarApp('✅ Fecha actualizada');
+                    } catch (e) { this.notificarApp('❌ Error al actualizar la fecha'); }
                 },
 
                 abrirVisor(doc) { 
@@ -2137,7 +2259,7 @@
                             await page.render(renderContext).promise;
                         }
                     } catch (e) {
-                        alert("⚠️ No se pudo renderizar el PDF en el visor.");
+                        this.notificarApp('⚠️ No se pudo renderizar el PDF');
                     } finally {
                         this.cargandoPDF = false;
                     }
@@ -2152,9 +2274,13 @@
 
                     try {
                         if (esPDF) {
-                            if (file.size > 900 * 1024) throw new Error("PDF_MUY_GRANDE");
-                            this.statusMsg = "Leyendo PDF...";
-                            base64Data = await this.leerComoBase64(file);
+                            if (file.size > 720 * 1024) {
+                                this.statusMsg = "PDF grande detectado. Auto-comprimiendo...";
+                                base64Data = await this.comprimirPDFPesado(file);
+                            } else {
+                                this.statusMsg = "Leyendo PDF...";
+                                base64Data = await this.leerComoBase64(file);
+                            }
                         } else {
                             this.statusMsg = "Comprimiendo Imagen...";
                             base64Data = await this.comprimirImagen(file);
@@ -2174,9 +2300,13 @@
                         this.nuevo = { nombre: '', categoria: this.categoriaSeleccionada && this.categoriaSeleccionada !== 'TODOS' ? this.categoriaSeleccionada : 'TRABAJO', subcarpeta: this.subcarpetaSeleccionada || '', fecha: '', esPDF: false };
                         this.showEditor = false;
                         this.archivoPendiente = null;
+                        this.notificarApp('✅ Documento guardado en la bóveda');
                     } catch(err) {
-                        if (err.message === "PDF_MUY_GRANDE") alert("⚠️ El PDF pesa más de 900 KB. Hazle una foto o escanéalo.");
-                        else alert("❌ Error al guardar. Inténtalo de nuevo.");
+                        if (err.message === "PDF_DEMASIADO_EXTENSO") {
+                            this.notificarApp('⚠️ El PDF tiene demasiadas páginas para comprimirse bajo 1 MB');
+                        } else {
+                            this.notificarApp('❌ Error al guardar. Inténtalo de nuevo');
+                        }
                     } finally { this.loading = false; }
                 },
 
@@ -2204,10 +2334,15 @@
                     });
                 },
 
-                async borrar(doc) {
-                    if(confirm("¿Destruir archivo definitivamente?")) {
-                        await db.collection("docsafe_b64").doc(doc.id).delete();
-                    }
+                pedirBorrarDoc(doc) {
+                    this.pedirConfirmacion(
+                        'Destruir Archivo',
+                        `¿Eliminar "${doc.nombre}" definitivamente de la nube y del dispositivo?`,
+                        async () => {
+                            await db.collection("docsafe_b64").doc(doc.id).delete();
+                            this.notificarApp('🗑️ Archivo destruido');
+                        }
+                    );
                 },
 
                 formatDate(f) { if(!f) return ''; const[y, m, d] = f.split('-'); return `${d}/${m}/${y}`; },
