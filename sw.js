@@ -3,7 +3,7 @@
    Sello: medbasha
    ========================================================= */
 
-const CACHE_NAME = 'docsafe-v4-2-0';
+const CACHE_NAME = 'docsafe-v4-2-1';
 const URLS_TO_CACHE = [
   './',
   './index.html',
@@ -60,7 +60,9 @@ self.addEventListener('fetch', (event) => {
         } catch (err) {
           console.error('Error capturando archivo compartido:', err);
         }
-        return Response.redirect('./index.html?shared=1', 303);
+        // Construye la URL absoluta exacta de la carpeta de la app para evitar el Error 404
+        const redirectUrl = new URL('./index.html?shared=1', self.location.href).href;
+        return Response.redirect(redirectUrl, 303);
       })()
     );
     return;
